@@ -12,7 +12,9 @@
 
 ## Why Stream Text?
 
-This project was built to improve how text is displayed on stream, especially for use in upcoming tournaments and live events I'm working on. Compared to traditional OBS text updates via `.txt`, Stream Text offers:
+This project was created while I'm learning Flutter, inspired by a past experience when a friend built a similar tool to help me manage on-screen text during my first tournament. That support made a big difference, and now I want a more flexible and customizable solution for future events I’ll be organizing.
+
+Compared to traditional OBS text updates via `.txt`, Stream Text offers:
 
 - Faster control over what's shown
 - More organized preset management via JSON
