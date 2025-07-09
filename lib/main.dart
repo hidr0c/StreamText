@@ -13,9 +13,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PXT Test CLGT',
+      title: 'PXT Test',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromRGBO(8, 218, 209, 1)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromRGBO(8, 218, 209, 1),
+        ),
       ),
       home: const InputManager(),
     );
@@ -30,18 +32,21 @@ class InputManager extends StatefulWidget {
 }
 
 class _InputManagerState extends State<InputManager> {
-  final List<TextEditingController> _nameControllers = [TextEditingController()];
-  final List<TextEditingController> _teamControllers = [TextEditingController()];
-  final TextEditingController _roundController = TextEditingController();
+  final List<TextEditingController> _nameControllers = [
+    TextEditingController(),
+  ];
+  final List<TextEditingController> _teamControllers = [
+    TextEditingController(),
+  ];
+  final List<TextEditingController> _roundControllers = [
+    TextEditingController(),
+  ];
   String _dropdownValue = 'Manual Input';
   List<String> _jsonOptions = [];
 
   final Color _appColor = const Color.fromRGBO(8, 218, 209, 1);
   late Color _textColor;
   String _fontFamily = 'Roboto';
-
-  bool _showTeamColumn = true;
-  File? _uploadedJsonFile;
 
   bool _showRound = true;
   bool _showTeam = true;
@@ -76,7 +81,9 @@ class _InputManagerState extends State<InputManager> {
       ],
     ],
   ];
-  final List<TextEditingController> _songNameControllers = [TextEditingController()];
+  final List<TextEditingController> _songNameControllers = [
+    TextEditingController(),
+  ];
 
   @override
   void initState() {
@@ -85,7 +92,10 @@ class _InputManagerState extends State<InputManager> {
   }
 
   Color _calculateTextColor() {
-    final luminance = 0.299 * _appColor.red + 0.587 * _appColor.green + 0.114 * _appColor.blue;
+    final luminance =
+        0.299 * _appColor.red +
+        0.587 * _appColor.green +
+        0.114 * _appColor.blue;
     return luminance > 128 ? Colors.black : Colors.white;
   }
 
@@ -104,72 +114,67 @@ class _InputManagerState extends State<InputManager> {
   void _saveToTxt() async {
     final name = _nameControllers.map((c) => c.text).join(', ');
     final team = _teamControllers.map((c) => c.text).join(', ');
-    final round = _roundController.text;
+    final round = _roundControllers.map((c) => c.text).join(', ');
     final content = 'Name: $name\nTeam: $team\nRound: $round';
     final file = File('output.txt');
     await file.writeAsString(content);
   }
 
   void _saveToJson() async {
-    final data = {
-      'round': _roundController.text,
-      'teams': _teamControllers.map((c) => c.text).toList(),
-      'names': _nameControllers.map((c) => c.text).toList(),
-    };
-    final encoder = JsonEncoder.withIndent('     ');
-    final file = File('output.json');
-    await file.writeAsString(encoder.convert(data));
-  }
+    final encoder = JsonEncoder.withIndent('  ');
 
-  void _addInputField(List<TextEditingController> controllers) {
-    if (controllers.length < 4) {
-      setState(() => controllers.add(TextEditingController()));
+    // Export rounds to rounds.json
+    final roundsData = _roundControllers.map((c) => c.text).toList()
+      ..removeWhere((round) => round.isEmpty);
+    await File('rounds.json').writeAsString(encoder.convert(roundsData));
+
+    // Export teams and members based on whether team is shown
+    if (_showTeam) {
+      // Group members by team
+      final Map<String, List<Map<String, String>>> teamMembers = {};
+
+      for (int i = 0; i < _teamControllers.length; i++) {
+        final teamName = _teamControllers[i].text;
+        if (teamName.isEmpty) continue;
+
+        if (i < _nameControllers.length) {
+          final memberName = _nameControllers[i].text;
+          if (memberName.isEmpty) continue;
+
+          if (!teamMembers.containsKey(teamName)) {
+            teamMembers[teamName] = [];
+          }
+
+          teamMembers[teamName]!.add({'name': memberName});
+        }
+      }
+
+      // Convert to the required format
+      final teamsData = teamMembers.entries
+          .map((entry) => {'team': entry.key, 'members': entry.value})
+          .toList();
+
+      await File('teams.json').writeAsString(encoder.convert(teamsData));
+    } else {
+      // If team is disabled, just export a flat list of members
+      final membersData = _nameControllers
+          .map((c) => {'name': c.text})
+          .where((member) => member['name']!.isNotEmpty)
+          .toList();
+
+      await File('members.json').writeAsString(encoder.convert(membersData));
     }
   }
 
-  void _removeInputField(List<TextEditingController> controllers) {
-    if (controllers.length > 1) {
-      setState(() {
-        final controller = controllers.removeLast();
-        controller.dispose(); // Dispose the removed controller
-      });
-    }
-  }
-
-  void _toggleTeamColumn() {
-    setState(() => _showTeamColumn = !_showTeamColumn);
-  }
-
-  void _changeFontFamily() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Enter Font Family', style: TextStyle(color: _textColor)),
-        content: TextField(
-          onSubmitted: (value) {
-            setState(() => _fontFamily = value);
-            Navigator.of(context).pop();
-          },
-          decoration: InputDecoration(
-            hintText: 'Font Family (e.g., Arial)',
-            hintStyle: TextStyle(color: _textColor.withOpacity(0.5)),
-          ),
-          style: TextStyle(color: _textColor),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Close', style: TextStyle(color: _textColor)),
-          ),
-        ],
-      ),
-    );
-  }
+  // Methods removed to fix linting errors
 
   void _uploadJsonFile() async {
     final file = File('uploaded.json');
     if (await file.exists()) {
-      setState(() => _uploadedJsonFile = file);
+      // Process the file as needed
+      // For now we just read the file without storing a reference
+      final content = await file.readAsString();
+      print('Uploaded JSON: $content');
     }
   }
 
@@ -183,24 +188,33 @@ class _InputManagerState extends State<InputManager> {
     final maxEntries = _teamControllers.length < _nameControllers.length
         ? _teamControllers.length
         : _nameControllers.length;
-    final newSessionScores = List.generate(maxEntries, (index) => ({
-          'round': _roundController.text,
-          'team': _teamControllers[index].text,
-          'name': _nameControllers[index].text,
-          'song': '',
-          'achievement': '',
-          'dxScore': '',
-          'fc': 'FC',
-          'fs': 'FS+',
-        }));
-    final newSessionControllers = List.generate(maxEntries, (index) => [
-          TextEditingController()..text = _roundController.text,
-          TextEditingController()..text = _teamControllers[index].text,
-          TextEditingController()..text = _nameControllers[index].text,
-          TextEditingController(),
-          TextEditingController(),
-          TextEditingController(),
-        ]);
+    final newSessionScores = List.generate(
+      maxEntries,
+      (index) => ({
+        'round': _roundControllers.isNotEmpty ? _roundControllers[0].text : '',
+        'team': _teamControllers[index].text,
+        'name': _nameControllers[index].text,
+        'song': '',
+        'achievement': '',
+        'dxScore': '',
+        'fc': 'FC',
+        'fs': 'FS+',
+      }),
+    );
+    final newSessionControllers = List.generate(
+      maxEntries,
+      (index) => [
+        TextEditingController()
+          ..text = _roundControllers.isNotEmpty
+              ? _roundControllers[0].text
+              : '',
+        TextEditingController()..text = _teamControllers[index].text,
+        TextEditingController()..text = _nameControllers[index].text,
+        TextEditingController(),
+        TextEditingController(),
+        TextEditingController(),
+      ],
+    );
     setState(() {
       _scores.add(newSessionScores);
       _scoreControllers.add(newSessionControllers);
@@ -219,7 +233,9 @@ class _InputManagerState extends State<InputManager> {
           }
         }
         _scores.removeAt(sessionIndex);
-        _songNameControllers.removeAt(sessionIndex).dispose(); // Dispose the song name controller
+        _songNameControllers
+            .removeAt(sessionIndex)
+            .dispose(); // Dispose the song name controller
       });
       print('Session removed. Remaining sessions: ${_scores.length}');
     }
@@ -227,49 +243,173 @@ class _InputManagerState extends State<InputManager> {
 
   void _saveScore(int sessionIndex, int playerIndex) async {
     final controllers = _scoreControllers[sessionIndex][playerIndex];
-    await File('song${sessionIndex + 1}_player${playerIndex + 1}.txt').writeAsString(controllers[3].text);
-    await File('achievementforsong${sessionIndex + 1}_player${playerIndex + 1}.txt').writeAsString(controllers[4].text);
-    await File('dxscoreforsong${sessionIndex + 1}_player${playerIndex + 1}.txt').writeAsString(controllers[5].text);
+    await File(
+      'song${sessionIndex + 1}_player${playerIndex + 1}.txt',
+    ).writeAsString(controllers[3].text);
+    await File(
+      'achievementforsong${sessionIndex + 1}_player${playerIndex + 1}.txt',
+    ).writeAsString(controllers[4].text);
+    await File(
+      'dxscoreforsong${sessionIndex + 1}_player${playerIndex + 1}.txt',
+    ).writeAsString(controllers[5].text);
   }
 
   void _saveScoresToTxt() async {
     for (var sessionIndex = 0; sessionIndex < _scores.length; sessionIndex++) {
       final sessionControllers = _scoreControllers[sessionIndex];
       final sessionScores = _scores[sessionIndex];
-      for (var playerIndex = 0; playerIndex < sessionScores.length; playerIndex++) {
+      for (
+        var playerIndex = 0;
+        playerIndex < sessionScores.length;
+        playerIndex++
+      ) {
         final controllers = sessionControllers[playerIndex];
-        final content = 'Round: ${controllers[0].text}\nTeam: ${controllers[1].text}\nName: ${controllers[2].text}\nSong ${sessionIndex + 1}: ${controllers[3].text}\nAchievement: ${controllers[4].text}\nDX Score: ${controllers[5].text}\nFC: ${sessionScores[playerIndex]['fc']}\nFS: ${sessionScores[playerIndex]['fs']}';
-        await File('score_session${sessionIndex}_player${playerIndex}.txt').writeAsString(content);
+        final content =
+            'Round: ${controllers[0].text}\nTeam: ${controllers[1].text}\nName: ${controllers[2].text}\nSong ${sessionIndex + 1}: ${controllers[3].text}\nAchievement: ${controllers[4].text}\nDX Score: ${controllers[5].text}\nFC: ${sessionScores[playerIndex]['fc']}\nFS: ${sessionScores[playerIndex]['fs']}';
+        await File(
+          'score_session${sessionIndex}_player${playerIndex}.txt',
+        ).writeAsString(content);
       }
     }
   }
 
   void _saveScoresToJson() async {
-    final data = _scores.asMap().map((sessionIndex, sessionScores) {
-      final sessionControllers = _scoreControllers[sessionIndex];
-      return MapEntry(sessionIndex, sessionScores.asMap().map((playerIndex, score) {
-        final controllers = sessionControllers[playerIndex];
-        return MapEntry(playerIndex, {
-          'round': controllers[0].text,
-          'team': controllers[1].text,
-          'name': controllers[2].text,
-          'song': controllers[3].text,
-          'achievement': controllers[4].text,
-          'dxScore': controllers[5].text,
-          'fc': score['fc'],
-          'fs': score['fs'],
-        });
-      }));
-    });
-    final encoder = JsonEncoder.withIndent('     ');
-    await File('scores.json').writeAsString(encoder.convert(data));
+    final encoder = JsonEncoder.withIndent('  ');
+
+    // Export rounds separately
+    final roundsSet = <String>{};
+    for (var sessionIndex = 0; sessionIndex < _scores.length; sessionIndex++) {
+      for (
+        var playerIndex = 0;
+        playerIndex < _scores[sessionIndex].length;
+        playerIndex++
+      ) {
+        final round = _scoreControllers[sessionIndex][playerIndex][0].text;
+        if (round.isNotEmpty) {
+          roundsSet.add(round);
+        }
+      }
+    }
+    final roundsList = roundsSet.toList();
+    await File('score_rounds.json').writeAsString(encoder.convert(roundsList));
+
+    // Export team and member data based on showTeam setting
+    if (_showTeam) {
+      // Group scores by team
+      final Map<String, List<Map<String, dynamic>>> teamMembers = {};
+
+      for (
+        var sessionIndex = 0;
+        sessionIndex < _scores.length;
+        sessionIndex++
+      ) {
+        for (
+          var playerIndex = 0;
+          playerIndex < _scores[sessionIndex].length;
+          playerIndex++
+        ) {
+          final controllers = _scoreControllers[sessionIndex][playerIndex];
+          final score = _scores[sessionIndex][playerIndex];
+          final teamName = controllers[1].text;
+          if (teamName.isEmpty) continue;
+
+          final memberName = controllers[2].text;
+          if (memberName.isEmpty) continue;
+
+          if (!teamMembers.containsKey(teamName)) {
+            teamMembers[teamName] = [];
+          }
+
+          // If member not found, add them
+          if (!teamMembers[teamName]!.any(
+            (member) => member['name'] == memberName,
+          )) {
+            teamMembers[teamName]!.add({'name': memberName, 'scores': []});
+          }
+
+          // Add score data to the member
+          final memberIndex = teamMembers[teamName]!.indexWhere(
+            (member) => member['name'] == memberName,
+          );
+
+          if (memberIndex >= 0) {
+            final scoreData = {
+              'song': controllers[3].text,
+              'achievement': controllers[4].text,
+              'dxScore': controllers[5].text,
+              'fc': score['fc'],
+              'fs': score['fs'],
+            };
+
+            if (teamMembers[teamName]![memberIndex]['scores'] == null) {
+              teamMembers[teamName]![memberIndex]['scores'] = [];
+            }
+            teamMembers[teamName]![memberIndex]['scores'].add(scoreData);
+          }
+        }
+      }
+
+      // Convert to required format
+      final teamsData = teamMembers.entries
+          .map(
+            (entry) => {
+              'team': entry.key,
+              'members': entry.value
+                  .map((member) => {'name': member['name']})
+                  .toList(),
+            },
+          )
+          .toList();
+
+      await File('score_teams.json').writeAsString(encoder.convert(teamsData));
+    } else {
+      // If team is disabled, just export a flat list of members with their scores
+      final Map<String, List<Map<String, dynamic>>> memberScores = {};
+
+      for (
+        var sessionIndex = 0;
+        sessionIndex < _scores.length;
+        sessionIndex++
+      ) {
+        for (
+          var playerIndex = 0;
+          playerIndex < _scores[sessionIndex].length;
+          playerIndex++
+        ) {
+          final controllers = _scoreControllers[sessionIndex][playerIndex];
+          final score = _scores[sessionIndex][playerIndex];
+          final memberName = controllers[2].text;
+          if (memberName.isEmpty) continue;
+
+          if (!memberScores.containsKey(memberName)) {
+            memberScores[memberName] = [];
+          }
+
+          memberScores[memberName]!.add({
+            'song': controllers[3].text,
+            'achievement': controllers[4].text,
+            'dxScore': controllers[5].text,
+            'fc': score['fc'],
+            'fs': score['fs'],
+          });
+        }
+      }
+
+      final membersData = memberScores.entries
+          .map((entry) => {'name': entry.key, 'scores': entry.value})
+          .toList();
+
+      await File(
+        'score_members.json',
+      ).writeAsString(encoder.convert(membersData));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('PXT Test CLGT', style: TextStyle(color: _textColor)),
+        title: Text('PXT Test', style: TextStyle(color: _textColor)),
         backgroundColor: _appColor,
         elevation: 2,
       ),
@@ -279,19 +419,22 @@ class _InputManagerState extends State<InputManager> {
           children: [
             ListTile(
               title: Text('Dashboard', style: TextStyle(color: _textColor)),
-              onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+              onTap: () =>
+                  Navigator.of(context).popUntil((route) => route.isFirst),
             ),
             ListTile(
               title: Text('Score', style: TextStyle(color: _textColor)),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => ScorePage(
-                    roundController: _roundController,
+                    roundControllers: _roundControllers,
                     teamControllers: _teamControllers,
                     nameControllers: _nameControllers,
                     scores: _scores,
                     scoreControllers: _scoreControllers,
                     songNameControllers: _songNameControllers,
+                    showTeam: _showTeam,
+                    showName: _showName,
                     onAddScoreSession: _addScoreSession,
                     onRemoveScoreSession: _removeScoreSession,
                     onSaveScore: _saveScore,
@@ -313,11 +456,16 @@ class _InputManagerState extends State<InputManager> {
                     isRoundDropdown: _isRoundDropdown,
                     isTeamNameDropdown: _isTeamNameDropdown,
                     onFontChanged: (font) => setState(() => _fontFamily = font),
-                    onRoundVisibilityChanged: (visible) => setState(() => _showRound = visible),
-                    onTeamVisibilityChanged: (visible) => setState(() => _showTeam = visible),
-                    onNameVisibilityChanged: (visible) => setState(() => _showName = visible),
-                    onRoundInputModeChanged: (isDropdown) => setState(() => _isRoundDropdown = isDropdown),
-                    onTeamNameInputModeChanged: (isDropdown) => setState(() => _isTeamNameDropdown = isDropdown),
+                    onRoundVisibilityChanged: (visible) =>
+                        setState(() => _showRound = visible),
+                    onTeamVisibilityChanged: (visible) =>
+                        setState(() => _showTeam = visible),
+                    onNameVisibilityChanged: (visible) =>
+                        setState(() => _showName = visible),
+                    onRoundInputModeChanged: (isDropdown) =>
+                        setState(() => _isRoundDropdown = isDropdown),
+                    onTeamNameInputModeChanged: (isDropdown) =>
+                        setState(() => _isTeamNameDropdown = isDropdown),
                   ),
                 ),
               ),
@@ -341,28 +489,49 @@ class _InputManagerState extends State<InputManager> {
                         child: _isRoundDropdown
                             ? FutureBuilder(
                                 future: _loadJsonOptions(),
-                                builder: (context, snapshot) => DropdownButtonFormField<String>(
-                                  value: _dropdownValue,
-                                  items: _jsonOptions
-                                      .map((option) => DropdownMenuItem(
-                                            value: option,
-                                            child: Text(option, style: TextStyle(color: _textColor)),
-                                          ))
-                                      .toList(),
-                                  onChanged: (value) => setState(() => _dropdownValue = value ?? 'Manual Input'),
-                                  decoration: InputDecoration(
-                                    hintText: 'Round',
-                                    hintStyle: TextStyle(color: _textColor.withOpacity(0.5)),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                ),
+                                builder: (context, snapshot) =>
+                                    DropdownButtonFormField<String>(
+                                      value: _dropdownValue,
+                                      items: _jsonOptions
+                                          .map(
+                                            (option) => DropdownMenuItem(
+                                              value: option,
+                                              child: Text(
+                                                option,
+                                                style: TextStyle(
+                                                  color: _textColor,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (value) => setState(
+                                        () => _dropdownValue =
+                                            value ?? 'Manual Input',
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: 'Round',
+                                        hintStyle: TextStyle(
+                                          color: _textColor.withOpacity(0.5),
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                               )
                             : TextField(
-                                controller: _roundController,
+                                controller: _roundControllers[0],
                                 decoration: InputDecoration(
                                   hintText: 'Round',
-                                  hintStyle: TextStyle(color: _textColor.withOpacity(0.5)),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  hintStyle: TextStyle(
+                                    color: _textColor.withOpacity(0.5),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                                 style: TextStyle(color: _textColor),
                                 textAlign: TextAlign.center,
@@ -377,7 +546,10 @@ class _InputManagerState extends State<InputManager> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.remove, color: Color.fromRGBO(8, 218, 209, 1)),
+                      icon: const Icon(
+                        Icons.remove,
+                        color: Color.fromRGBO(8, 218, 209, 1),
+                      ),
                       onPressed: _teamControllers.length > 1
                           ? () {
                               setState(() {
@@ -388,7 +560,10 @@ class _InputManagerState extends State<InputManager> {
                           : null,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.add, color: Color.fromRGBO(8, 218, 209, 1)),
+                      icon: const Icon(
+                        Icons.add,
+                        color: Color.fromRGBO(8, 218, 209, 1),
+                      ),
                       onPressed: _teamControllers.length < 4
                           ? () {
                               setState(() {
@@ -414,31 +589,60 @@ class _InputManagerState extends State<InputManager> {
                             _isTeamNameDropdown
                                 ? FutureBuilder(
                                     future: _loadJsonOptions(),
-                                    builder: (context, snapshot) => DropdownButtonFormField<String>(
-                                      value: _dropdownValue,
-                                      items: _jsonOptions
-                                          .map((option) => DropdownMenuItem(
-                                                value: option,
-                                                child: Text(option, style: TextStyle(color: _textColor)),
-                                              ))
-                                          .toList(),
-                                      onChanged: (value) => setState(() => _dropdownValue = value ?? 'Manual Input'),
-                                      decoration: InputDecoration(
-                                        hintText: 'Team ${index + 1}',
-                                        hintStyle: TextStyle(color: _textColor.withOpacity(0.5)),
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                      ),
-                                    ),
+                                    builder: (context, snapshot) =>
+                                        DropdownButtonFormField<String>(
+                                          value: _dropdownValue,
+                                          items: _jsonOptions
+                                              .map(
+                                                (option) => DropdownMenuItem(
+                                                  value: option,
+                                                  child: Text(
+                                                    option,
+                                                    style: TextStyle(
+                                                      color: _textColor,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                              .toList(),
+                                          onChanged: (value) => setState(
+                                            () => _dropdownValue =
+                                                value ?? 'Manual Input',
+                                          ),
+                                          decoration: InputDecoration(
+                                            hintText: 'Team ${index + 1}',
+                                            hintStyle: TextStyle(
+                                              color: _textColor.withOpacity(
+                                                0.5,
+                                              ),
+                                            ),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        ),
                                   )
                                 : TextField(
                                     controller: _teamControllers[index],
                                     decoration: InputDecoration(
                                       hintText: 'Team ${index + 1}',
-                                      hintStyle: TextStyle(color: _textColor.withOpacity(0.5)),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      hintStyle: TextStyle(
+                                        color: _textColor.withOpacity(0.5),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                       suffixIcon: IconButton(
-                                        icon: const Icon(Icons.save, color: Color.fromRGBO(8, 218, 209, 1)),
-                                        onPressed: () => _saveIndividualFile('team', _teamControllers[index].text, index),
+                                        icon: const Icon(
+                                          Icons.save,
+                                          color: Color.fromRGBO(8, 218, 209, 1),
+                                        ),
+                                        onPressed: () => _saveIndividualFile(
+                                          'team',
+                                          _teamControllers[index].text,
+                                          index,
+                                        ),
                                       ),
                                     ),
                                     style: TextStyle(color: _textColor),
@@ -468,21 +672,37 @@ class _InputManagerState extends State<InputManager> {
                                       opacity: 0.5,
                                       child: FutureBuilder(
                                         future: _loadJsonOptions(),
-                                        builder: (context, snapshot) => DropdownButtonFormField<String>(
-                                          value: _dropdownValue,
-                                          items: _jsonOptions
-                                              .map((option) => DropdownMenuItem(
-                                                    value: option,
-                                                    child: Text(option, style: TextStyle(color: _textColor)),
-                                                  ))
-                                              .toList(),
-                                          onChanged: null,
-                                          decoration: InputDecoration(
-                                            hintText: 'Name ${index + 1}',
-                                            hintStyle: TextStyle(color: _textColor.withOpacity(0.5)),
-                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                          ),
-                                        ),
+                                        builder: (context, snapshot) =>
+                                            DropdownButtonFormField<String>(
+                                              value: _dropdownValue,
+                                              items: _jsonOptions
+                                                  .map(
+                                                    (option) =>
+                                                        DropdownMenuItem(
+                                                          value: option,
+                                                          child: Text(
+                                                            option,
+                                                            style: TextStyle(
+                                                              color: _textColor,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                  )
+                                                  .toList(),
+                                              onChanged: null,
+                                              decoration: InputDecoration(
+                                                hintText: 'Name ${index + 1}',
+                                                hintStyle: TextStyle(
+                                                  color: _textColor.withOpacity(
+                                                    0.5,
+                                                  ),
+                                                ),
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                              ),
+                                            ),
                                       ),
                                     ),
                                   )
@@ -490,11 +710,22 @@ class _InputManagerState extends State<InputManager> {
                                     controller: _nameControllers[index],
                                     decoration: InputDecoration(
                                       hintText: 'Name ${index + 1}',
-                                      hintStyle: TextStyle(color: _textColor.withOpacity(0.5)),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      hintStyle: TextStyle(
+                                        color: _textColor.withOpacity(0.5),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
                                       suffixIcon: IconButton(
-                                        icon: const Icon(Icons.save, color: Color.fromRGBO(8, 218, 209, 1)),
-                                        onPressed: () => _saveIndividualFile('name', _nameControllers[index].text, index),
+                                        icon: const Icon(
+                                          Icons.save,
+                                          color: Color.fromRGBO(8, 218, 209, 1),
+                                        ),
+                                        onPressed: () => _saveIndividualFile(
+                                          'name',
+                                          _nameControllers[index].text,
+                                          index,
+                                        ),
                                       ),
                                     ),
                                     style: TextStyle(color: _textColor),
@@ -512,9 +743,14 @@ class _InputManagerState extends State<InputManager> {
                   onPressed: _uploadJsonFile,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _appColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  child: Text('Upload JSON File', style: TextStyle(color: _textColor)),
+                  child: Text(
+                    'Upload JSON File',
+                    style: TextStyle(color: _textColor),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -528,10 +764,18 @@ class _InputManagerState extends State<InputManager> {
                         onPressed: _saveToTxt,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _appColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
-                        child: Text('Save .txt', style: TextStyle(color: _textColor)),
+                        child: Text(
+                          'Save .txt',
+                          style: TextStyle(color: _textColor),
+                        ),
                       ),
                     ),
                   ),
@@ -542,10 +786,18 @@ class _InputManagerState extends State<InputManager> {
                         onPressed: _saveToJson,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _appColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
-                        child: Text('Save .json', style: TextStyle(color: _textColor)),
+                        child: Text(
+                          'Save .json',
+                          style: TextStyle(color: _textColor),
+                        ),
                       ),
                     ),
                   ),
@@ -561,8 +813,12 @@ class _InputManagerState extends State<InputManager> {
 
   @override
   void dispose() {
-    for (var controllers in [_nameControllers, _teamControllers]) {
-      for (var controller in controllers) {
+    for (var controllersList in [
+      _nameControllers,
+      _teamControllers,
+      _roundControllers,
+    ]) {
+      for (var controller in controllersList) {
         controller.dispose();
       }
     }
@@ -576,7 +832,6 @@ class _InputManagerState extends State<InputManager> {
     for (var controller in _songNameControllers) {
       controller.dispose();
     }
-    _roundController.dispose();
     super.dispose();
   }
 }
@@ -634,7 +889,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = (0.299 * 8 + 0.587 * 218 + 0.114 * 209) > 128 ? Colors.black : Colors.white;
+    final textColor = (0.299 * 8 + 0.587 * 218 + 0.114 * 209) > 128
+        ? Colors.black
+        : Colors.white;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -650,7 +907,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: () => showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: Text('Enter Font Family', style: TextStyle(color: textColor)),
+                    title: Text(
+                      'Enter Font Family',
+                      style: TextStyle(color: textColor),
+                    ),
                     content: TextField(
                       onSubmitted: (value) {
                         widget.onFontChanged(value);
@@ -665,16 +925,31 @@ class _SettingsPageState extends State<SettingsPage> {
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: Text('Close', style: TextStyle(color: textColor)),
+                        child: Text(
+                          'Close',
+                          style: TextStyle(color: textColor),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color.fromRGBO(8, 218, 209, 1)),
-                child: Text('Change Font Family', style: TextStyle(color: textColor)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromRGBO(8, 218, 209, 1),
+                ),
+                child: Text(
+                  'Change Font Family',
+                  style: TextStyle(color: textColor),
+                ),
               ),
               const SizedBox(height: 16),
-              Text('Visibility Options:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+              Text(
+                'Visibility Options:',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
               CheckboxListTile(
                 title: Text('Show Round', style: TextStyle(color: textColor)),
                 value: _showRound,
@@ -700,9 +975,19 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
               const SizedBox(height: 16),
-              Text('Round Input Mode:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+              Text(
+                'Round Input Mode:',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
               CheckboxListTile(
-                title: Text('Use Dropdown for Round', style: TextStyle(color: textColor)),
+                title: Text(
+                  'Use Dropdown for Round',
+                  style: TextStyle(color: textColor),
+                ),
                 value: _isRoundDropdown,
                 onChanged: (value) {
                   setState(() => _isRoundDropdown = value ?? false);
@@ -710,9 +995,19 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
               const SizedBox(height: 16),
-              Text('Team & Name Input Mode:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+              Text(
+                'Team & Name Input Mode:',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
               CheckboxListTile(
-                title: Text('Use Dropdown for Team & Name', style: TextStyle(color: textColor)),
+                title: Text(
+                  'Use Dropdown for Team & Name',
+                  style: TextStyle(color: textColor),
+                ),
                 value: _isTeamNameDropdown,
                 onChanged: (value) {
                   setState(() => _isTeamNameDropdown = value ?? false);
@@ -728,12 +1023,14 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 class ScorePage extends StatefulWidget {
-  final TextEditingController roundController;
+  final List<TextEditingController> roundControllers;
   final List<TextEditingController> teamControllers;
   final List<TextEditingController> nameControllers;
   final List<List<Map<String, String>>> scores;
   final List<List<List<TextEditingController>>> scoreControllers;
   final List<TextEditingController> songNameControllers;
+  final bool showTeam;
+  final bool showName;
   final VoidCallback onAddScoreSession;
   final Function(int) onRemoveScoreSession;
   final Function(int, int) onSaveScore;
@@ -742,12 +1039,14 @@ class ScorePage extends StatefulWidget {
 
   const ScorePage({
     Key? key,
-    required this.roundController,
+    required this.roundControllers,
     required this.teamControllers,
     required this.nameControllers,
     required this.scores,
     required this.scoreControllers,
     required this.songNameControllers,
+    required this.showTeam,
+    required this.showName,
     required this.onAddScoreSession,
     required this.onRemoveScoreSession,
     required this.onSaveScore,
@@ -771,7 +1070,11 @@ class _ScorePageState extends State<ScorePage> {
     final nameCount = widget.nameControllers.length;
     final minCount = teamCount < nameCount ? teamCount : nameCount;
 
-    for (var sessionIndex = 0; sessionIndex < widget.scores.length; sessionIndex++) {
+    for (
+      var sessionIndex = 0;
+      sessionIndex < widget.scores.length;
+      sessionIndex++
+    ) {
       var sessionScores = widget.scores[sessionIndex];
       var sessionControllers = widget.scoreControllers[sessionIndex];
 
@@ -787,7 +1090,10 @@ class _ScorePageState extends State<ScorePage> {
       while (sessionScores.length < minCount) {
         final index = sessionScores.length;
         final newControllers = [
-          TextEditingController()..text = widget.roundController.text,
+          TextEditingController()
+            ..text = widget.roundControllers.isNotEmpty
+                ? widget.roundControllers[0].text
+                : '',
           TextEditingController()..text = widget.teamControllers[index].text,
           TextEditingController()..text = widget.nameControllers[index].text,
           TextEditingController(),
@@ -796,10 +1102,14 @@ class _ScorePageState extends State<ScorePage> {
         ];
         sessionControllers.add(newControllers);
         sessionScores.add({
-          'round': widget.roundController.text,
+          'round': widget.roundControllers.isNotEmpty
+              ? widget.roundControllers[0].text
+              : '',
           'team': widget.teamControllers[index].text,
           'name': widget.nameControllers[index].text,
-          'song': widget.songNameControllers.length > sessionIndex ? widget.songNameControllers[sessionIndex].text : '',
+          'song': widget.songNameControllers.length > sessionIndex
+              ? widget.songNameControllers[sessionIndex].text
+              : '',
           'achievement': '',
           'dxScore': '',
           'fc': 'FC',
@@ -809,10 +1119,14 @@ class _ScorePageState extends State<ScorePage> {
 
       // Update existing entries with new team/name values
       for (var i = 0; i < sessionScores.length; i++) {
-        sessionScores[i]['round'] = widget.roundController.text;
+        sessionScores[i]['round'] = widget.roundControllers.isNotEmpty
+            ? widget.roundControllers[0].text
+            : '';
         sessionScores[i]['team'] = widget.teamControllers[i].text;
         sessionScores[i]['name'] = widget.nameControllers[i].text;
-        sessionControllers[i][0].text = widget.roundController.text;
+        sessionControllers[i][0].text = widget.roundControllers.isNotEmpty
+            ? widget.roundControllers[0].text
+            : '';
         sessionControllers[i][1].text = widget.teamControllers[i].text;
         sessionControllers[i][2].text = widget.nameControllers[i].text;
       }
@@ -827,7 +1141,10 @@ class _ScorePageState extends State<ScorePage> {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = (0.299 * 8 + 0.587 * 218 + 0.114 * 209) > 128 ? Colors.black : Colors.white;
+    final textColor = (0.299 * 8 + 0.587 * 218 + 0.114 * 209) > 128
+        ? Colors.black
+        : Colors.white;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Score', style: TextStyle(color: textColor)),
@@ -838,172 +1155,300 @@ class _ScorePageState extends State<ScorePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (var sessionIndex = 0; sessionIndex < widget.scores.length && sessionIndex < widget.songNameControllers.length; sessionIndex++)
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: widget.songNameControllers[sessionIndex],
-                              decoration: InputDecoration(
-                                labelText: 'Song ${sessionIndex + 1}',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                filled: true,
-                                fillColor: textColor.withOpacity(0.1),
-                              ),
-                              style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
-                              onChanged: (value) {
-                                setState(() {
-                                  for (var player in widget.scores[sessionIndex]) {
-                                    player['song'] = value;
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove, color: Color.fromRGBO(8, 218, 209, 1)),
-                                onPressed: widget.scores.length > 1 ? () => widget.onRemoveScoreSession(sessionIndex) : null,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.add, color: Color.fromRGBO(8, 218, 209, 1)),
-                                onPressed: () {
-                                  widget.onAddScoreSession();
-                                  setState(() {});
+            if (widget.showTeam && widget.showName)
+              for (
+                var sessionIndex = 0;
+                sessionIndex < widget.scores.length &&
+                    sessionIndex < widget.songNameControllers.length;
+                sessionIndex++
+              )
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller:
+                                    widget.songNameControllers[sessionIndex],
+                                decoration: InputDecoration(
+                                  labelText: 'Song ${sessionIndex + 1}',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  filled: true,
+                                  fillColor: textColor.withOpacity(0.1),
+                                ),
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                onChanged: (value) {
+                                  setState(() {
+                                    for (var player
+                                        in widget.scores[sessionIndex]) {
+                                      player['song'] = value;
+                                    }
+                                  });
                                 },
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(widget.scores[sessionIndex].length, (playerIndex) => Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text(
-                              widget.scoreControllers[sessionIndex][playerIndex][1].text.isNotEmpty
-                                  ? widget.scoreControllers[sessionIndex][playerIndex][1].text
-                                  : 'Team ${playerIndex + 1}',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                             ),
-                          ),
-                        )),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(widget.scores[sessionIndex].length, (playerIndex) => Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text(
-                              widget.scoreControllers[sessionIndex][playerIndex][2].text.isNotEmpty
-                                  ? widget.scoreControllers[sessionIndex][playerIndex][2].text
-                                  : 'Name ${playerIndex + 1}',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: textColor),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.remove,
+                                    color: Color.fromRGBO(8, 218, 209, 1),
+                                  ),
+                                  onPressed: widget.scores.length > 1
+                                      ? () => widget.onRemoveScoreSession(
+                                          sessionIndex,
+                                        )
+                                      : null,
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.add,
+                                    color: Color.fromRGBO(8, 218, 209, 1),
+                                  ),
+                                  onPressed: () {
+                                    widget.onAddScoreSession();
+                                    setState(() {});
+                                  },
+                                ),
+                              ],
                             ),
-                          ),
-                        )),
-                      ),
-                      const SizedBox(height: 12),
-                      if (widget.scoreControllers[sessionIndex].isNotEmpty)
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(widget.scores[sessionIndex].length, (playerIndex) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: _buildTextField('Achievement', widget.scoreControllers[sessionIndex][playerIndex][4], sessionIndex, playerIndex, textColor),
+                          children: List.generate(
+                            widget.scores[sessionIndex].length,
+                            (playerIndex) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
+                                child: Text(
+                                  widget
+                                          .scoreControllers[sessionIndex][playerIndex][1]
+                                          .text
+                                          .isNotEmpty
+                                      ? widget
+                                            .scoreControllers[sessionIndex][playerIndex][1]
+                                            .text
+                                      : 'Team ${playerIndex + 1}',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
-                          )),
+                          ),
                         ),
-                      const SizedBox(height: 12),
-                      if (widget.scoreControllers[sessionIndex].isNotEmpty)
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(widget.scores[sessionIndex].length, (playerIndex) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: _buildTextField('DX Score', widget.scoreControllers[sessionIndex][playerIndex][5], sessionIndex, playerIndex, textColor),
+                          children: List.generate(
+                            widget.scores[sessionIndex].length,
+                            (playerIndex) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
+                                child: Text(
+                                  widget
+                                          .scoreControllers[sessionIndex][playerIndex][2]
+                                          .text
+                                          .isNotEmpty
+                                      ? widget
+                                            .scoreControllers[sessionIndex][playerIndex][2]
+                                            .text
+                                      : 'Name ${playerIndex + 1}',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: textColor),
+                                ),
+                              ),
                             ),
-                          )),
+                          ),
                         ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(widget.scores[sessionIndex].length, (playerIndex) => Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: _buildDropdown('FC', widget.scores[sessionIndex][playerIndex]['fc']!, ['FC', 'FC+', 'AP', 'AP+'], (value) {
-                              if (value != null) {
-                                setState(() => widget.scores[sessionIndex][playerIndex]['fc'] = value);
-                              }
-                            }, textColor),
+                        const SizedBox(height: 12),
+                        if (widget.scoreControllers[sessionIndex].isNotEmpty)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(
+                              widget.scores[sessionIndex].length,
+                              (playerIndex) => Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                  ),
+                                  child: _buildTextField(
+                                    'Achievement',
+                                    widget
+                                        .scoreControllers[sessionIndex][playerIndex][4],
+                                    sessionIndex,
+                                    playerIndex,
+                                    textColor,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        )),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(widget.scores[sessionIndex].length, (playerIndex) => Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: _buildDropdown('FS', widget.scores[sessionIndex][playerIndex]['fs']!, ['FS+', 'FDX', 'FDX+'], (value) {
-                              if (value != null) {
-                                setState(() => widget.scores[sessionIndex][playerIndex]['fs'] = value);
-                              }
-                            }, textColor),
+                        const SizedBox(height: 12),
+                        if (widget.scoreControllers[sessionIndex].isNotEmpty)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(
+                              widget.scores[sessionIndex].length,
+                              (playerIndex) => Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                  ),
+                                  child: _buildTextField(
+                                    'DX Score',
+                                    widget
+                                        .scoreControllers[sessionIndex][playerIndex][5],
+                                    sessionIndex,
+                                    playerIndex,
+                                    textColor,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        )),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(
+                            widget.scores[sessionIndex].length,
+                            (playerIndex) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
+                                child: _buildDropdown(
+                                  'FC',
+                                  widget
+                                      .scores[sessionIndex][playerIndex]['fc']!,
+                                  ['FC', 'FC+', 'AP', 'AP+'],
+                                  (value) {
+                                    if (value != null) {
+                                      setState(
+                                        () =>
+                                            widget.scores[sessionIndex][playerIndex]['fc'] =
+                                                value,
+                                      );
+                                    }
+                                  },
+                                  textColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(
+                            widget.scores[sessionIndex].length,
+                            (playerIndex) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
+                                child: _buildDropdown(
+                                  'FS',
+                                  widget
+                                      .scores[sessionIndex][playerIndex]['fs']!,
+                                  ['FS+', 'FDX', 'FDX+'],
+                                  (value) {
+                                    if (value != null) {
+                                      setState(
+                                        () =>
+                                            widget.scores[sessionIndex][playerIndex]['fs'] =
+                                                value,
+                                      );
+                                    }
+                                  },
+                                  textColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+            if (widget.showTeam && widget.showName) const SizedBox(height: 24),
+            if (widget.showTeam && widget.showName)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: widget.onSaveScoresToTxt,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromRGBO(8, 218, 209, 1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: Text(
+                      'Save .txt',
+                      style: TextStyle(color: textColor, fontSize: 16),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: widget.onSaveScoresToJson,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromRGBO(8, 218, 209, 1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: Text(
+                      'Save .json',
+                      style: TextStyle(color: textColor, fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: widget.onSaveScoresToTxt,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromRGBO(8, 218, 209, 1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  child: Text('Save .txt', style: TextStyle(color: textColor, fontSize: 16)),
-                ),
-                ElevatedButton(
-                  onPressed: widget.onSaveScoresToJson,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromRGBO(8, 218, 209, 1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  child: Text('Save .json', style: TextStyle(color: textColor, fontSize: 16)),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, int sessionIndex, int playerIndex, Color textColor) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    int sessionIndex,
+    int playerIndex,
+    Color textColor,
+  ) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
@@ -1021,13 +1466,23 @@ class _ScorePageState extends State<ScorePage> {
     );
   }
 
-  Widget _buildDropdown(String label, String value, List<String> items, ValueChanged<String?> onChanged, Color textColor) {
+  Widget _buildDropdown(
+    String label,
+    String value,
+    List<String> items,
+    ValueChanged<String?> onChanged,
+    Color textColor,
+  ) {
     return DropdownButtonFormField<String>(
       value: value,
-      items: items.map((item) => DropdownMenuItem(
-        value: item,
-        child: Text(item, style: TextStyle(color: textColor)),
-      )).toList(),
+      items: items
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Text(item, style: TextStyle(color: textColor)),
+            ),
+          )
+          .toList(),
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
