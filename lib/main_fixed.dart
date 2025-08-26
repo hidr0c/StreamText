@@ -77,16 +77,12 @@ class _InputManagerState extends State<InputManager> {
       if (await namesFile.exists()) {
         final namesData = jsonDecode(await namesFile.readAsString());
         if (namesData is List) {
-          // Extract names and ensure they are unique by using a set
-          final Set<String> uniqueNames = {};
-          namesData.forEach((item) {
-            final name = item['name']?.toString() ?? '';
-            if (name.isNotEmpty) {
-              uniqueNames.add(name);
-            }
-          });
-          
-          setState(() => _namesOptions = uniqueNames.toList());
+          setState(
+            () => _namesOptions = namesData
+                .map((item) => item['name']?.toString() ?? '')
+                .where((name) => name.isNotEmpty)
+                .toList(),
+          );
         }
       }
 
@@ -95,16 +91,7 @@ class _InputManagerState extends State<InputManager> {
       if (await roundsFile.exists()) {
         final roundsData = jsonDecode(await roundsFile.readAsString());
         if (roundsData is List) {
-          // Convert to Set to ensure uniqueness, then back to List
-          final Set<String> uniqueRounds = {};
-          roundsData.forEach((item) {
-            final round = item?.toString() ?? '';
-            if (round.isNotEmpty) {
-              uniqueRounds.add(round);
-            }
-          });
-          
-          setState(() => _roundsOptions = uniqueRounds.toList());
+          setState(() => _roundsOptions = List<String>.from(roundsData));
         }
       }
     } catch (e) {
@@ -278,8 +265,7 @@ class _InputManagerState extends State<InputManager> {
                       Expanded(
                         child: _isRoundDropdown && _roundsOptions.isNotEmpty
                             ? DropdownButtonFormField<String>(
-                                value: _roundControllers[0].text.isNotEmpty && 
-                                    _roundsOptions.contains(_roundControllers[0].text)
+                                value: _roundControllers[0].text.isNotEmpty
                                     ? _roundControllers[0].text
                                     : null,
                                 items: _roundsOptions
@@ -365,8 +351,7 @@ class _InputManagerState extends State<InputManager> {
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: _isNameDropdown && _namesOptions.isNotEmpty
                         ? DropdownButtonFormField<String>(
-                            value: _nameControllers[index].text.isNotEmpty && 
-                                _namesOptions.contains(_nameControllers[index].text)
+                            value: _nameControllers[index].text.isNotEmpty
                                 ? _nameControllers[index].text
                                 : null,
                             items: _namesOptions
