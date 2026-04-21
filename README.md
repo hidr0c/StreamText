@@ -29,7 +29,7 @@ Compared to traditional OBS text updates via `.txt`, Stream Text offers:
 ## Getting Started
 
 ```bash
-git clone https://github.com/yourusername/stream-text.git
+git clone https://github.com/hidr0c/stream-text.git
 cd stream-text
 flutter pub get
 flutter run
